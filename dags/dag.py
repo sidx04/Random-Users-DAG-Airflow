@@ -1,6 +1,7 @@
 import requests
 import os
 import json
+import logging
 from airflow import DAG
 from datetime import timedelta, datetime
 from airflow.operators.python import PythonOperator
@@ -44,26 +45,31 @@ with DAG(dag_id='user-pipeline',
 
         print(json.dumps(data, indent=4, sort_keys=False))
 
+        logging.info(json.dumps(data, indent=4, sort_keys=False))
+
         return data
 
     @task()
     def load_data(data):
         pg = PostgresHook(postgres_conn_id=POSTGRES_ID)
         connection = pg.get_conn()
+        logging.info("Connected to Postgres DB...")
+
         cursor = connection.cursor()
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS USERS (
-            FIRST_NAME VARCHAR2(255)
-            LAST_NAME VARCHAR2(255)
-            AGE VARCHAR2(255)
-            COUNTRY VARCHAR2(255)
-            EMAIL VARCHAR2(255)
-            USERNAME VARCHAR2(255)
-            NUMBER VARCHAR2(255)
-            PROFILE_PHOTO VARCHAR2(255)
+            FIRST_NAME VARCHAR(255),
+            LAST_NAME VARCHAR(255),
+            AGE VARCHAR(255),
+            COUNTRY VARCHAR(255),
+            EMAIL VARCHAR(255),
+            USERNAME VARCHAR(255),
+            NUMBER VARCHAR(255),
+            PROFILE_PHOTO VARCHAR(255),
             TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
+        logging.info("Created table...")
 
         cursor.execute("""
         INSERT INTO USERS (FIRST_NAME, LAST_NAME, AGE, COUNTRY, EMAIL, USERNAME, NUMBER, PROFILE_PHOTO) 
@@ -78,9 +84,12 @@ with DAG(dag_id='user-pipeline',
             data['number'],
             data['profile_photo']
         ))
+        logging.info("Populated DB...")
 
         connection.commit()
         cursor.close()
+
+        logging.info("Closing Postgres DB...")
 
     # DAG Workflow
     raw_data = get_data()
